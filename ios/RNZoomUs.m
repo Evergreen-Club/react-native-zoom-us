@@ -8,6 +8,10 @@
   RCTPromiseRejectBlock initializePromiseReject;
   RCTPromiseResolveBlock meetingPromiseResolve;
   RCTPromiseRejectBlock meetingPromiseReject;
+  RCTPromiseResolveBlock meetingStartPromiseResolve;
+  RCTPromiseRejectBlock meetingStartPromiseReject;
+  RCTPromiseResolveBlock meetingEndPromiseResolve;
+  RCTPromiseRejectBlock meetingEndPromiseReject;
 }
 
 - (instancetype)init {
@@ -17,6 +21,10 @@
     initializePromiseReject = nil;
     meetingPromiseResolve = nil;
     meetingPromiseReject = nil;
+    meetingStartPromiseResolve = nil;
+    meetingStartPromiseReject = nil;
+    meetingEndPromiseResolve = nil;
+    meetingEndPromiseReject = nil;
   }
   return self;
 }
@@ -173,6 +181,32 @@ RCT_EXPORT_METHOD(
   }
 }
 
+RCT_EXPORT_METHOD(
+  onMeetingStarted: 
+  withResolve: (RCTPromiseResolveBlock)resolve
+  withReject: (RCTPromiseRejectBlock)reject
+){ 
+ @try {  
+    meetingStartPromiseResolve = resolve;
+    meetingStartPromiseReject = reject;
+ } @catch (NSError *ex) {
+      reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing joinMeeting", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(
+  onMeetingEnded: 
+  withResolve: (RCTPromiseResolveBlock)resolve
+  withReject: (RCTPromiseRejectBlock)reject
+){ 
+ @try {  
+    meetingEndPromiseResolve = resolve;
+    meetingEndPromiseReject = reject;
+ } @catch (NSError *ex) {
+      reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing endMeeting", ex);
+  }
+}
+
 - (void)onMobileRTCAuthReturn:(MobileRTCAuthError)returnValue {
   NSLog(@"nZoomSDKInitializeResult, errorCode=%d", returnValue);
   if(returnValue != MobileRTCAuthError_Success) {
@@ -216,7 +250,11 @@ RCT_EXPORT_METHOD(
     }
 
     meetingPromiseResolve(@"Connected to zoom meeting");
-
+    if(meetingStartPromiseResolve!=nil){
+      meetingStartPromiseResolve(nil);
+    }
+    meetingStartPromiseResolve = nil;
+    meetingStartPromiseReject = nil;
     meetingPromiseResolve = nil;
     meetingPromiseReject = nil;
   }
@@ -237,6 +275,18 @@ RCT_EXPORT_METHOD(
 
   meetingPromiseResolve = nil;
   meetingPromiseReject = nil;
+}
+
+- (void)onMeetingEndedReason: (MobileRTCMeetingEndReason)reason {
+  
+  if (!meetingEndPromiseResolve) {
+    return;
+  }
+
+  meetingEndPromiseResolve(nil);
+
+  meetingEndPromiseResolve = nil;
+  meetingEndPromiseReject = nil;
 }
 
 @end

@@ -9,6 +9,12 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReadableMap;
 
+import java.util.List;
+import us.zoom.sdk.InMeetingAudioController;
+import us.zoom.sdk.InMeetingChatMessage;
+import us.zoom.sdk.InMeetingEventHandler;
+import us.zoom.sdk.InMeetingServiceListener;
+
 import us.zoom.sdk.ZoomSDK;
 import us.zoom.sdk.ZoomError;
 import us.zoom.sdk.ZoomSDKInitializeListener;
@@ -24,7 +30,7 @@ import us.zoom.sdk.StartMeetingParamsWithoutLogin;
 import us.zoom.sdk.JoinMeetingOptions;
 import us.zoom.sdk.JoinMeetingParams;
 
-public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSDKInitializeListener, MeetingServiceListener, LifecycleEventListener {
+public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSDKInitializeListener, MeetingServiceListener, LifecycleEventListener, InMeetingServiceListener {
 
   private final static String TAG = "RNZoomUs";
   private final ReactApplicationContext reactContext;
@@ -32,6 +38,8 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
   private Boolean isInitialized = false;
   private Promise initializePromise;
   private Promise meetingPromise;
+  private Promise meetingStartPromise;
+  private Promise meetingEndPromise;
 
   public RNZoomUsModule(ReactApplicationContext reactContext) {
     super(reactContext);
@@ -197,6 +205,24 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
     }
   }
 
+  @ReactMethod
+  public void onMeetingStarted(Promise promise) {
+        try {
+            meetingStartPromise = promise;
+        } catch (Exception ex) {
+            promise.reject("ERR_UNEXPECTED_EXCEPTION", ex);
+        }
+  }
+
+  @ReactMethod 
+  public void onMeetingEnded(Promise promise) {
+        try {
+            meetingEndPromise = promise;
+        } catch (Exception ex) {
+            promise.reject("ERR_UNEXPECTED_EXCEPTION", ex);
+        }
+  }
+
   @Override
   public void onZoomSDKInitializeResult(int errorCode, int internalErrorCode) {
     Log.i(TAG, "onZoomSDKInitializeResult, errorCode=" + errorCode + ", internalErrorCode=" + internalErrorCode);
@@ -231,7 +257,17 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
       meetingPromise = null;
     } else if (meetingStatus == MeetingStatus.MEETING_STATUS_INMEETING) {
       meetingPromise.resolve("Connected to zoom meeting");
+      if(meetingStartPromise != null){
+        meetingStartPromise.resolve(null);
+      }
       meetingPromise = null;
+      meetingStartPromise = null;
+    } else if (meetingStatus == MeetingStatus.MEETING_STATUS_DISCONNECTING){
+            if (meetingEndPromise == null) {
+                return;
+            }
+            meetingEndPromise.resolve(null);
+            meetingEndPromise = null;
     }
   }
 
@@ -267,4 +303,163 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
   public void onHostPause() {}
   @Override
   public void onHostResume() {}
+
+  @Override
+    public void onMeetingNeedPasswordOrDisplayName(boolean b, boolean b1, InMeetingEventHandler inMeetingEventHandler) {
+
+    }
+
+    @Override
+    public void onWebinarNeedRegister() {
+
+    }
+
+    @Override
+    public void onJoinWebinarNeedUserNameAndEmail(InMeetingEventHandler inMeetingEventHandler) {
+
+    }
+
+    @Override
+    public void onMeetingNeedColseOtherMeeting(InMeetingEventHandler inMeetingEventHandler) {
+
+    }
+
+    @Override
+    public void onMeetingFail(int i, int i1) {
+
+    }
+
+    @Override
+    public void onMeetingLeaveComplete(long l) {
+        if (meetingEndPromise == null) {
+            return;
+        }
+        meetingEndPromise.resolve(null);
+        meetingEndPromise = null;
+    }
+
+    @Override
+    public void onMeetingUserJoin(List<Long> list) {
+
+    }
+
+    @Override
+    public void onMeetingUserLeave(List<Long> list) {
+
+    }
+
+    @Override
+    public void onMeetingUserUpdated(long l) {
+
+    }
+
+    @Override
+    public void onMeetingHostChanged(long l) {
+
+    }
+
+    @Override
+    public void onMeetingCoHostChanged(long l) {
+
+    }
+
+    @Override
+    public void onActiveVideoUserChanged(long l) {
+
+    }
+
+    @Override
+    public void onActiveSpeakerVideoUserChanged(long l) {
+
+    }
+
+    @Override
+    public void onSpotlightVideoChanged(boolean b) {
+
+    }
+
+    @Override
+    public void onUserVideoStatusChanged(long l) {
+
+    }
+
+    @Override
+    public void onUserNetworkQualityChanged(long l) {
+
+    }
+
+    @Override
+    public void onMicrophoneStatusError(InMeetingAudioController.MobileRTCMicrophoneError mobileRTCMicrophoneError) {
+
+    }
+
+    @Override
+    public void onUserAudioStatusChanged(long l) {
+
+    }
+
+    @Override
+    public void onHostAskUnMute(long l) {
+
+    }
+
+    @Override
+    public void onHostAskStartVideo(long l) {
+
+    }
+
+    @Override
+    public void onUserAudioTypeChanged(long l) {
+
+    }
+
+    @Override
+    public void onMyAudioSourceTypeChanged(int i) {
+
+    }
+
+    @Override
+    public void onLowOrRaiseHandStatusChanged(long l, boolean b) {
+
+    }
+
+    @Override
+    public void onMeetingSecureKeyNotification(byte[] bytes) {
+
+    }
+
+    @Override
+    public void onChatMessageReceived(InMeetingChatMessage inMeetingChatMessage) {
+
+    }
+
+    @Override
+    public void onSilentModeChanged(boolean b) {
+
+    }
+
+    @Override
+    public void onFreeMeetingReminder(boolean b, boolean b1, boolean b2) {
+
+    }
+
+    @Override
+    public void onMeetingActiveVideo(long l) {
+
+    }
+
+    @Override
+    public void onSinkAttendeeChatPriviledgeChanged(int i) {
+
+    }
+
+    @Override
+    public void onSinkAllowAttendeeChatNotification(int i) {
+
+    }
+
+    @Override
+    public void onUserNameChanged(long l, String s) {
+
+    }
 }

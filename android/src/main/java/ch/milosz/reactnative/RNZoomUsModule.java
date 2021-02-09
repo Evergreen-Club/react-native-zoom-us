@@ -209,6 +209,7 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
   public void onMeetingStarted(Promise promise) {
         try {
             meetingStartPromise = promise;
+            Log.i(TAG, "OnMeetingStarted Promise initialised "+promise);
         } catch (Exception ex) {
             promise.reject("ERR_UNEXPECTED_EXCEPTION", ex);
         }
@@ -218,6 +219,7 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
   public void onMeetingEnded(Promise promise) {
         try {
             meetingEndPromise = promise;
+            Log.i(TAG, "OnMeetingEnded Promise initialised "+promise);
         } catch (Exception ex) {
             promise.reject("ERR_UNEXPECTED_EXCEPTION", ex);
         }
@@ -244,30 +246,36 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
   @Override
   public void onMeetingStatusChanged(MeetingStatus meetingStatus, int errorCode, int internalErrorCode) {
     Log.i(TAG, "onMeetingStatusChanged, meetingStatus=" + meetingStatus + ", errorCode=" + errorCode + ", internalErrorCode=" + internalErrorCode);
-
-    if (meetingPromise == null) {
-      return;
-    }
-
     if(meetingStatus == MeetingStatus.MEETING_STATUS_FAILED) {
+      if (meetingPromise == null) {
+        return;
+      }
       meetingPromise.reject(
               "ERR_ZOOM_MEETING",
               "Error: " + errorCode + ", internalErrorCode=" + internalErrorCode
       );
       meetingPromise = null;
-    } else if (meetingStatus == MeetingStatus.MEETING_STATUS_INMEETING) {
-      meetingPromise.resolve("Connected to zoom meeting");
+    }
+    if (meetingStatus == MeetingStatus.MEETING_STATUS_INMEETING) {
+      Log.i(TAG, "OnMeetingStarted");
       if(meetingStartPromise != null){
         meetingStartPromise.resolve(null);
       }
-      meetingPromise = null;
       meetingStartPromise = null;
-    } else if (meetingStatus == MeetingStatus.MEETING_STATUS_DISCONNECTING){
-            if (meetingEndPromise == null) {
+
+      if (meetingPromise == null) {
+        return;
+      }
+      meetingPromise.resolve("Connected to zoom meeting");
+      meetingPromise = null;
+    }
+    if (meetingStatus == MeetingStatus.MEETING_STATUS_DISCONNECTING){
+      Log.i(TAG, "OnMeetingEnded");
+      if (meetingEndPromise == null) {
                 return;
-            }
-            meetingEndPromise.resolve(null);
-            meetingEndPromise = null;
+      }
+      meetingEndPromise.resolve(null);
+      meetingEndPromise = null;
     }
   }
 
@@ -331,6 +339,7 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
 
     @Override
     public void onMeetingLeaveComplete(long l) {
+        Log.i(TAG, "OnMeetingEnded");
         if (meetingEndPromise == null) {
             return;
         }

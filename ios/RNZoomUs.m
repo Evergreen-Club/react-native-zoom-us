@@ -181,7 +181,7 @@ RCT_EXPORT_METHOD(
   }
 }
 
-RCT_EXPORT_METHOD(onMeetingStarted, withResolve: (RCTPromiseResolveBlock)resolve
+RCT_REMAP_METHOD(onMeetingStarted, withResolve: (RCTPromiseResolveBlock)resolve
   withReject: (RCTPromiseRejectBlock)reject
 ){ 
  @try {  
@@ -192,7 +192,7 @@ RCT_EXPORT_METHOD(onMeetingStarted, withResolve: (RCTPromiseResolveBlock)resolve
   }
 }
 
-RCT_EXPORT_METHOD(onMeetingEnded, withResolve: (RCTPromiseResolveBlock)resolve
+RCT_REMAP_METHOD(onMeetingEnded, withResolve: (RCTPromiseResolveBlock)resolve
   withReject: (RCTPromiseRejectBlock)reject
 ){ 
  @try {  

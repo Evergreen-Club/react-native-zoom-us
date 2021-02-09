@@ -82,9 +82,19 @@ async function startMeeting(params: RNZoomUsStartMeetingParams) {
   return RNZoomUs.startMeeting({ userType, ...params, meetingNumber })
 }
 
+async function onMeetingStarted() {
+  return RNZoomUs.onMeetingStarted();
+}
+
+async function onMeetingEnded() {
+  return RNZoomUs.onMeetingEnded();
+}
+
 export default {
   initialize,
   joinMeeting,
   joinMeetingWithPassword,
   startMeeting,
+  onMeetingStarted,
+  onMeetingEnded
 }

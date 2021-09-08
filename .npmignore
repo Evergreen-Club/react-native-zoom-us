@@ -1,5 +1,6 @@
-#**/*.ts
-#!**/*.d.ts
+**/*.ts
+**/*.tsx
+!**/*.d.ts
 scripts
 **/tests
 **/test

@@ -38,6 +38,7 @@ dependencies {
 
     implementation 'us.zoom.sdk:commonlib@aar'
     implementation 'us.zoom.sdk:mobilertc@aar'
+
     implementation 'com.facebook.react:react-native:+' // From node_modules
     implementation 'androidx.recyclerview:recyclerview:1.0.0'
     implementation 'androidx.appcompat:appcompat:1.0.0'

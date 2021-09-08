@@ -886,7 +886,7 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
   public void onHostResume() {}
 
     @Override
-    public void onMeetingLeaveComplete(long l) {
+    public void onMeetingLeaveComplete(long ret) {
         Log.i(TAG, "OnMeetingEnded");
         updateVideoView();
         sendEvent("MeetingEvent", getMeetingEndReasonName((int)ret));

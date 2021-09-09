@@ -1,9 +1,11 @@
-
+#import <ReplayKit/ReplayKit.h>
 #import "RNZoomUs.h"
 
 @implementation RNZoomUs
 {
   BOOL isInitialized;
+  BOOL shouldAutoConnectAudio;
+  BOOL hasObservers;
   RCTPromiseResolveBlock initializePromiseResolve;
   RCTPromiseRejectBlock initializePromiseReject;
   RCTPromiseResolveBlock meetingPromiseResolve;
@@ -12,6 +14,11 @@
   RCTPromiseRejectBlock meetingStartPromiseReject;
   RCTPromiseResolveBlock meetingEndPromiseResolve;
   RCTPromiseRejectBlock meetingEndPromiseReject;
+  // If screenShareExtension is set, the Share Content > Screen option will automatically be
+  // enabled in the UI
+  NSString *screenShareExtension;
+
+  NSString *jwtToken;
 }
 
 - (instancetype)init {
@@ -19,12 +26,15 @@
     isInitialized = NO;
     initializePromiseResolve = nil;
     initializePromiseReject = nil;
+    shouldAutoConnectAudio = nil;
     meetingPromiseResolve = nil;
     meetingPromiseReject = nil;
     meetingStartPromiseResolve = nil;
     meetingStartPromiseReject = nil;
     meetingEndPromiseResolve = nil;
     meetingEndPromiseReject = nil;
+    screenShareExtension = nil;
+    jwtToken = nil;
   }
   return self;
 }
@@ -59,26 +69,31 @@ RCT_EXPORT_METHOD(
     initializePromiseResolve = resolve;
     initializePromiseReject = reject;
 
-
+    screenShareExtension = data[@"iosScreenShareExtensionId"];
+    jwtToken = data[@"jwtToken"];
 
     MobileRTCSDKInitContext *context = [[MobileRTCSDKInitContext alloc] init];
-    context.domain = data[@"domain"];;
+    context.domain = data[@"domain"];
     context.enableLog = YES;
     context.locale = MobileRTC_ZoomLocale_Default;
 
     //Note: This step is optional, Method is uesd for iOS Replaykit Screen share integration,if not,just ignore this step.
-    // context.appGroupId = @"group.zoom.us.MobileRTCSampleExtensionReplayKit";
+    context.appGroupId = data[@"iosAppGroupId"];
     BOOL initializeSuc = [[MobileRTC sharedRTC] initialize:context];
-    [[[MobileRTC sharedRTC] getMeetingSettings]
-      disableShowVideoPreviewWhenJoinMeeting:settings[@"disableShowVideoPreviewWhenJoinMeeting"]];
+    MobileRTCMeetingSettings *zoomSettings = [[MobileRTC sharedRTC] getMeetingSettings];
+    [zoomSettings disableShowVideoPreviewWhenJoinMeeting:settings[@"disableShowVideoPreviewWhenJoinMeeting"]];
+    zoomSettings.enableCustomMeeting = settings[@"enableCustomizedMeetingUI"];
 
     MobileRTCAuthService *authService = [[MobileRTC sharedRTC] getAuthService];
     if (authService)
     {
       authService.delegate = self;
-
-      authService.clientKey = data[@"clientKey"];
-      authService.clientSecret = data[@"clientSecret"];
+      if (jwtToken != nil) {
+        authService.jwtToken = data[@"jwtToken"];
+      } else {
+        authService.clientKey = data[@"clientKey"];
+        authService.clientSecret = data[@"clientSecret"];
+      }
 
       [authService sdkAuth];
     } else {
@@ -111,7 +126,7 @@ RCT_EXPORT_METHOD(
       params.zak = data[@"zoomAccessToken"];
 
       MobileRTCMeetError startMeetingResult = [ms startMeetingWithStartParam:params];
-      NSLog(@"startMeeting, startMeetingResult=%d", startMeetingResult);
+      NSLog(@"startMeeting, startMeetingResult=%lu", startMeetingResult);
     }
   } @catch (NSError *ex) {
       reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing startMeeting", ex);
@@ -125,6 +140,7 @@ RCT_EXPORT_METHOD(
 )
 {
   @try {
+    shouldAutoConnectAudio = data[@"autoConnectAudio"];
     meetingPromiseResolve = resolve;
     meetingPromiseReject = reject;
 
@@ -144,7 +160,7 @@ RCT_EXPORT_METHOD(
 
       MobileRTCMeetError joinMeetingResult = [ms joinMeetingWithJoinParam:joinParam];
 
-      NSLog(@"joinMeeting, joinMeetingResult=%d", joinMeetingResult);
+      NSLog(@"joinMeeting, joinMeetingResult=%lu", joinMeetingResult);
     }
   } @catch (NSError *ex) {
       reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing joinMeeting", ex);
@@ -174,7 +190,7 @@ RCT_EXPORT_METHOD(
       joinParam.password = password;
 
       MobileRTCMeetError joinMeetingResult = [ms joinMeetingWithJoinParam:joinParam];
-      NSLog(@"joinMeeting, joinMeetingResult=%d", joinMeetingResult);
+      NSLog(@"joinMeeting, joinMeetingResult=%lu", joinMeetingResult);
     }
   } @catch (NSError *ex) {
       reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing joinMeeting", ex);
@@ -200,11 +216,236 @@ RCT_EXPORT_METHOD(onMeetingEnded: (RCTPromiseResolveBlock)resolve
     meetingEndPromiseReject = reject;
  } @catch (NSError *ex) {
       reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing endMeeting", ex);
+ }
+}
+
+RCT_EXPORT_METHOD(leaveMeeting: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) return;
+    [ms leaveMeetingWithCmd:LeaveMeetingCmd_Leave];
+  } @catch (NSError *ex) {
+    reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing leaveMeeting", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(connectAudio: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    [self connectAudio];
+    resolve(nil);
+  } @catch (NSError *ex) {
+    reject(@"ERR_UNEXPECTED_EXCEPTION", @"Executing connectAudio", ex);
+  }
+}
+
+- (void)connectAudio {
+  MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+  if (!ms) return;
+  [ms connectMyAudio: YES];
+  [ms muteMyAudio: NO];
+  NSLog(@"connectAudio");
+}
+
+RCT_EXPORT_METHOD(isMeetingConnected: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    MobileRTCMeetingState state = [ms getMeetingState];
+    resolve(@(state == MobileRTCMeetingState_InMeeting));
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing isMeetingConnected", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(isMeetingHost: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    resolve(@([ms isMeetingHost]));
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing isMeetingHost", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(getInMeetingUserIdList: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    NSMutableArray *rnUserList = [[NSMutableArray alloc] init];
+    if (ms) {
+      NSArray<NSNumber *> *userList = [ms getInMeetingUserList];
+      if (userList != nil) {
+        [userList enumerateObjectsUsingBlock:^(NSNumber *userId, NSUInteger idx, BOOL *stop) {
+            [rnUserList addObject:[userId stringValue]];
+        }];
+      }
+    }
+    resolve(rnUserList);
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing getInMeetingUserIdList", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(muteMyAudio: (BOOL)muted resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    MobileRTCAudioError error = [ms muteMyAudio: muted];
+    if (error == 0) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", [NSString stringWithFormat:@"Mute my video error, status: %lu", error], nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing muteMyAudio", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(muteMyVideo: (BOOL)muted resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    MobileRTCVideoError error = [ms muteMyVideo:muted];
+    if (error == 0) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", [NSString stringWithFormat:@"Mute my video error, status: %lu", error], nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing muteMyVideo", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(muteAttendee: (NSString *)userId muted:(BOOL)muted resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    NSNumber *zoomUserId = @([userId intValue]);
+    if ([ms muteUserAudio:muted withUID:zoomUserId]) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Fail to mute attendee", nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing muteAttendee", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(muteAllAttendee: (BOOL)allowUnmuteSelf resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    if ([ms muteAllUserAudio: allowUnmuteSelf]) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Fail to mute all attendee", nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing muteAllAttendee", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(startShareScreen: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    if ([ms startAppShare]) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Fail to share screen", nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing startShareScreen", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(stopShareScreen: (BOOL)muted resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (ms) {
+      [ms stopAppShare];
+    }
+    resolve(nil);
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing stopShareScreen", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(switchCamera: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    MobileRTCCameraError error = [ms switchMyCamera];
+    if (error == 0) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", [NSString stringWithFormat:@"Switch camera error, status: %lu", error], nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing switchCamera", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(raiseMyHand: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    if ([ms raiseMyHand]) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Fail raise hand", nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing raiseMyHand", ex);
+  }
+}
+
+RCT_EXPORT_METHOD(lowerMyHand: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    if ([ms lowerHand:[ms myselfUserID]]) {
+      resolve(nil);
+    } else {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Fail lower hand", nil);
+    }
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing lowerMyHand", ex);
   }
 }
 
 - (void)onMobileRTCAuthReturn:(MobileRTCAuthError)returnValue {
   NSLog(@"nZoomSDKInitializeResult, errorCode=%d", returnValue);
+  [self sendEventWithName:@"AuthEvent" event:[self authErrorName:returnValue]];
   if(returnValue != MobileRTCAuthError_Success) {
     initializePromiseReject(
       @"ERR_ZOOM_INITIALIZATION",
@@ -218,6 +459,7 @@ RCT_EXPORT_METHOD(onMeetingEnded: (RCTPromiseResolveBlock)resolve
 
 - (void)onMeetingReturn:(MobileRTCMeetError)errorCode internalError:(NSInteger)internalErrorCode {
   NSLog(@"onMeetingReturn, error=%d, internalErrorCode=%zd", errorCode, internalErrorCode);
+  [self sendEventWithName:@"MeetingEvent" event:[self meetErrorName:errorCode]];
 
   if (!meetingPromiseResolve) {
     return;
@@ -240,6 +482,13 @@ RCT_EXPORT_METHOD(onMeetingEnded: (RCTPromiseResolveBlock)resolve
 - (void)onMeetingStateChange:(MobileRTCMeetingState)state {
   NSLog(@"onMeetingStatusChanged, meetingState=%d", state);
 
+  // TODO Send event with status to be consistent with android
+  // [self sendEventWithName:@"MeetingEvent" event:@"success" status:state];
+
+  if (state == MobileRTCMeetingState_InMeeting && shouldAutoConnectAudio == YES) {
+    [self connectAudio];
+  }
+
   if (state == MobileRTCMeetingState_InMeeting || state == MobileRTCMeetingState_Idle) {
     if (!meetingPromiseResolve) {
       return;
@@ -258,23 +507,29 @@ RCT_EXPORT_METHOD(onMeetingEnded: (RCTPromiseResolveBlock)resolve
 
 - (void)onMeetingError:(MobileRTCMeetError)errorCode message:(NSString *)message {
   NSLog(@"onMeetingError, errorCode=%d, message=%@", errorCode, message);
+  [self sendEventWithName:@"MeetingEvent" event:[self meetErrorName:errorCode]];
 
   if (!meetingPromiseResolve) {
     return;
   }
 
-  meetingPromiseReject(
-    @"ERR_ZOOM_MEETING",
-    [NSString stringWithFormat:@"Error: %d, internalErrorCode=%@", errorCode, message],
-    [NSError errorWithDomain:@"us.zoom.sdk" code:errorCode userInfo:nil]
-  );
+  if (errorCode != MobileRTCMeetError_Success) {
+    meetingPromiseReject(
+      @"ERR_ZOOM_MEETING",
+      [NSString stringWithFormat:@"Error: %d, internalErrorCode=%@", errorCode, message],
+      [NSError errorWithDomain:@"us.zoom.sdk" code:errorCode userInfo:nil]
+    );
+  } else {
+    meetingPromiseResolve(@"Connected to zoom meeting");
+  }
 
+  shouldAutoConnectAudio = nil;
   meetingPromiseResolve = nil;
   meetingPromiseReject = nil;
 }
 
-- (void)onMeetingEndedReason: (MobileRTCMeetingEndReason)reason {
-  
+- (void)onMeetingEndedReason:(MobileRTCMeetingEndReason)reason {
+  [self sendEventWithName:@"MeetingEvent" event:[self meetingEndReasonName:reason]];
   if (!meetingEndPromiseResolve) {
     return;
   }
@@ -283,6 +538,132 @@ RCT_EXPORT_METHOD(onMeetingEnded: (RCTPromiseResolveBlock)resolve
 
   meetingEndPromiseResolve = nil;
   meetingEndPromiseReject = nil;
+}
+
+#pragma mark - Screen share functionality
+
+- (void)onSinkMeetingActiveShare:(NSUInteger)userID {
+  MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+  if (ms) {
+    if (userID == 0) {
+      [self sendEventWithName:@"MeetingEvent" event:@"screenShareStopped"];
+    } else if (userID == [ms myselfUserID]){
+      [self sendEventWithName:@"MeetingEvent" event:@"screenShareStarted"];
+    }
+  }
+}
+
+- (void)onClickShareScreen:(UIViewController *)parentVC {
+  if (@available(iOS 12.0, *)) {
+    CGRect frame = parentVC.view.bounds;
+    RPSystemBroadcastPickerView *pickerView = [[RPSystemBroadcastPickerView alloc] initWithFrame:frame];
+    pickerView.preferredExtension = screenShareExtension;
+    SEL buttonPressed = NSSelectorFromString(@"buttonPressed:");
+    if ([pickerView respondsToSelector:buttonPressed]) {
+      [pickerView performSelector:buttonPressed withObject:nil];
+    }
+  }
+}
+
+- (BOOL)respondsToSelector:(SEL)aSelector
+{
+  if (aSelector == @selector(onClickShareScreen:)) {
+    return screenShareExtension != nil;
+  }
+  return [super respondsToSelector:aSelector];
+}
+
+#pragma mark - React Native event emitters and event handling
+
+- (void)startObserving {
+  hasObservers = YES;
+}
+
+- (void)stopObserving {
+  hasObservers = NO;
+}
+
+- (NSArray<NSString *> *)supportedEvents {
+  return @[@"AuthEvent", @"MeetingEvent"];
+}
+
+- (void)sendEventWithName:(NSString *)name event:(NSString *)event {
+  if (hasObservers) {
+    [self sendEventWithName:name body:@{@"event": event}];
+  }
+}
+
+- (NSString *)authErrorName:(MobileRTCAuthError)error {
+  switch (error) {
+    case MobileRTCAuthError_ClientIncompatible: return @"clientIncompatible";
+    case MobileRTCAuthError_Success: return @"success";
+    case MobileRTCAuthError_AccountNotEnableSDK: return @"accountNotEnableSDK"; // iOS only
+    case MobileRTCAuthError_AccountNotSupport: return @"accountNotSupport"; // iOS only
+    case MobileRTCAuthError_KeyOrSecretEmpty: return @"keyOrSecretEmpty"; // iOS only
+    case MobileRTCAuthError_KeyOrSecretWrong: return @"keyOrSecretWrong"; // iOS only
+    case MobileRTCAuthError_NetworkIssue: return @"networkIssue"; // iOS only
+    case MobileRTCAuthError_None: return @"none"; // iOS only
+    case MobileRTCAuthError_OverTime: return @"overTime"; // iOS only
+    case MobileRTCAuthError_ServiceBusy: return @"serviceBusy"; // iOS only
+    default: return @"unknown";
+  }
+}
+
+- (NSString *)meetErrorName:(MobileRTCMeetError)error {
+  switch (error) {
+    case MobileRTCMeetError_InvalidArguments: return @"invalidArguments";
+    case MobileRTCMeetError_MeetingClientIncompatible: return @"meetingClientIncompatible";
+    case MobileRTCMeetError_MeetingLocked: return @"meetingLocked";
+    case MobileRTCMeetError_MeetingNotExist: return @"meetingNotExist";
+    case MobileRTCMeetError_MeetingOver: return @"meetingOver";
+    case MobileRTCMeetError_MeetingRestricted: return @"meetingRestricted";
+    case MobileRTCMeetError_MeetingRestrictedJBH: return @"meetingRestrictedJBH";
+    case MobileRTCMeetError_MeetingUserFull: return @"meetingUserFull";
+    case MobileRTCMeetError_MMRError: return @"mmrError";
+    case MobileRTCMeetError_NetworkError: return @"networkError";
+    case MobileRTCMeetError_NoMMR: return @"noMMR";
+    case MobileRTCMeetError_RegisterWebinarDeniedEmail: return @"registerWebinarDeniedEmail";
+    case MobileRTCMeetError_RegisterWebinarEnforceLogin: return @"registerWebinarEnforceLogin";
+    case MobileRTCMeetError_RegisterWebinarFull: return @"registerWebinarFull";
+    case MobileRTCMeetError_RegisterWebinarHostRegister: return @"registerWebinarHostRegister";
+    case MobileRTCMeetError_RegisterWebinarPanelistRegister: return @"registerWebinarPanelistRegister";
+    case MobileRTCMeetError_RemovedByHost: return @"removedByHost";
+    case MobileRTCMeetError_SessionError: return @"sessionError";
+    case MobileRTCMeetError_Success: return @"success";
+    case MobileRTCMeetError_AudioAutoStartError: return @"audioAutoStartError"; // iOS only
+    case MobileRTCMeetError_CannotEmitWebRequest: return @"cannotEmitWebRequest"; // iOS only
+    case MobileRTCMeetError_CannotStartTokenExpire: return @"cannotStartTokenExpire"; // iOS only
+    case MobileRTCMeetError_InAnotherMeeting: return @"inAnotherMeeting"; // iOS only
+    case MobileRTCMeetError_InvalidUserType: return @"invalidUserType"; // iOS only
+    case MobileRTCMeetError_JoinWebinarWithSameEmail: return @"joinWebinarWithSameEmail"; // iOS only
+    case MobileRTCMeetError_MeetingNotStart: return @"meetingNotStart"; // iOS only
+    case MobileRTCMeetError_PasswordError: return @"passwordError"; // iOS only
+    case MobileRTCMeetError_ReconnectError: return @"reconnectError"; // iOS only
+    case MobileRTCMeetError_VanityNotExist: return @"vanityNotExist"; // iOS only
+    case MobileRTCMeetError_VBMaximumNum: return @"vbMaximumNum"; // iOS only
+    case MobileRTCMeetError_VBNoSupport: return @"vbNoSupport"; // iOS only
+    case MobileRTCMeetError_VBRemoveNone: return @"vbRemoveNone"; // iOS only
+    case MobileRTCMeetError_VBSaveImage: return @"vbSaveImage"; // iOS only
+    // _VBSetError has the same value as _VBBase so we are excluding _VBBase
+    case MobileRTCMeetError_VBSetError: return @"vbSetError"; // iOS only
+    case MobileRTCMeetError_VideoError: return @"videoError"; // iOS only
+    case MobileRTCMeetError_WriteConfigFile: return @"writeConfigFile"; // iOS only
+    case MobileRTCMeetError_ZCCertificateChanged: return @"zcCertificateChanged"; // iOS only
+    default: return @"unknown";
+  }
+}
+
+- (NSString *)meetingEndReasonName:(MobileRTCMeetingEndReason)reason {
+  switch (reason) {
+    case MobileRTCMeetingEndReason_EndByHost: return @"endedByHost";
+    case MobileRTCMeetingEndReason_HostEndForAnotherMeeting: return @"endedByHostForAnotherMeeting";
+    case MobileRTCMeetingEndReason_SelfLeave: return @"endedBySelf";
+    case MobileRTCMeetingEndReason_ConnectBroken: return @"endedConnectBroken";
+    case MobileRTCMeetingEndReason_FreeMeetingTimeout: return @"endedFreeMeetingTimeout";
+    case MobileRTCMeetingEndReason_JBHTimeout: return @"endedJBHTimeout";
+    case MobileRTCMeetingEndReason_RemovedByHost: return @"endedRemovedByHost";
+    default: return @"endedUnknownReason";
+  }
 }
 
 @end

@@ -11,8 +11,8 @@ Pod::Spec.new do |s|
   s.homepage     = "https://github.com/mieszko4/react-native-zoom-us"
   s.license      = "MIT"
   s.author             = { "author" => "author@domain.cn" }
-  s.platform     = :ios, "9.0"
-
+  s.platform     = :ios, "8.0"
+  s.libraries = "sqlite3", "z.1.2.5", "c++"
   s.source       = { :git => "https://github.com/mieszko4/react-native-zoom-us" }
   s.source_files  = "ios/*.{h,m}"
   s.requires_arc = true

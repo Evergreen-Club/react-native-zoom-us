@@ -1,5 +1,4 @@
 **/*.ts
-**/*.tsx
 !**/*.d.ts
 scripts
 **/tests

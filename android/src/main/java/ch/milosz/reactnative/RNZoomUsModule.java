@@ -29,9 +29,7 @@ import us.zoom.sdk.ZoomSDKInitializeListener;
 import us.zoom.sdk.MeetingStatus;
 import us.zoom.sdk.MeetingError;
 import us.zoom.sdk.MeetingService;
-import us.zoom.sdk.InMeetingService;
 import us.zoom.sdk.MeetingServiceListener;
-import us.zoom.sdk.InMeetingAudioController;
 
 import us.zoom.sdk.StartMeetingOptions;
 import us.zoom.sdk.StartMeetingParamsWithoutLogin;

@@ -1,4 +1,4 @@
-import { NativeModules } from 'react-native'
+import { EventSubscriptionVendor, NativeModules } from 'react-native'
 import invariant from 'invariant'
 
 const { RNZoomUs } = NativeModules
@@ -10,7 +10,9 @@ const DEFAULT_USER_TYPE = 2
 export interface RNZoomUsInitializeParams {
   clientKey: string;
   clientSecret: string;
-  domain?: string
+  domain?: string;
+  iosAppGroupId?: string;
+  iosScreenShareExtensionId?: string;
 }
 async function initialize(
   params: RNZoomUsInitializeParams,
@@ -40,6 +42,7 @@ export interface RNZoomUsJoinMeetingParams {
   meetingNumber: string | number
   password?: string
   participantID?: string
+  autoConnectAudio?: boolean
   noAudio?: boolean
   noVideo?: boolean
 
@@ -48,7 +51,7 @@ export interface RNZoomUsJoinMeetingParams {
   webinarToken?: string
 }
 async function joinMeeting(params: RNZoomUsJoinMeetingParams) {
-  let { meetingNumber, noAudio = false, noVideo = false } = params
+  let { meetingNumber, noAudio = false, noVideo = false, autoConnectAudio = false } = params
   invariant(meetingNumber, 'ZoomUs.joinMeeting requires meetingNumber')
   if (typeof meetingNumber !== 'string') meetingNumber = meetingNumber.toString()
 
@@ -58,6 +61,7 @@ async function joinMeeting(params: RNZoomUsJoinMeetingParams) {
     meetingNumber,
     noAudio: !!noAudio, // required
     noVideo: !!noVideo, // required
+    autoConnectAudio,   // required
   })
 }
 
@@ -89,6 +93,7 @@ async function onMeetingStarted() {
 async function onMeetingEnded() {
   return RNZoomUs.onMeetingEnded();
 }
+export const ZoomEmitter = RNZoomUs as EventSubscriptionVendor;
 
 export default {
   initialize,

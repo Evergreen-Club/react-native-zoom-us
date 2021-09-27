@@ -93,6 +93,15 @@ async function onMeetingStarted() {
 async function onMeetingEnded() {
   return RNZoomUs.onMeetingEnded();
 }
+
+async function leaveMeeting() {
+  return RNZoomUs.leaveMeeting()
+}
+
+async function connectAudio() {
+  return RNZoomUs.connectAudio()
+}
+
 export const ZoomEmitter = RNZoomUs as EventSubscriptionVendor;
 
 export default {
@@ -101,5 +110,7 @@ export default {
   joinMeetingWithPassword,
   startMeeting,
   onMeetingStarted,
-  onMeetingEnded
+  onMeetingEnded,
+  leaveMeeting,
+  connectAudio
 }

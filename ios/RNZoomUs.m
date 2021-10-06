@@ -229,6 +229,20 @@ RCT_EXPORT_METHOD(connectAudio: (RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   }
 }
 
+RCT_EXPORT_METHOD(isMeetingConnected: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
+    if (!ms) {
+      reject(@"ERR_ZOOM_MEETING_CONTROL", @"Cannot get meeting service.", nil);
+      return;
+    }
+    MobileRTCMeetingState state = [ms getMeetingState];
+    resolve(@(state == MobileRTCMeetingState_InMeeting));
+  } @catch (NSError *ex) {
+    reject(@"ERR_ZOOM_MEETING_CONTROL", @"Executing isMeetingConnected", ex);
+  }
+}
+
 - (void)connectAudio {
   MobileRTCMeetingService *ms = [[MobileRTC sharedRTC] getMeetingService];
   if (!ms) return;

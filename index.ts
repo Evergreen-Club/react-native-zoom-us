@@ -102,6 +102,10 @@ async function connectAudio() {
   return RNZoomUs.connectAudio()
 }
 
+async function isMeetingConnected() {
+  return RNZoomUs.isMeetingConnected()
+}
+
 export const ZoomEmitter = RNZoomUs as EventSubscriptionVendor;
 
 export default {
@@ -112,5 +116,6 @@ export default {
   onMeetingStarted,
   onMeetingEnded,
   leaveMeeting,
-  connectAudio
+  connectAudio,
+  isMeetingConnected
 }

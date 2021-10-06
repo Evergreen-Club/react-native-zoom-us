@@ -10,6 +10,7 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 import java.util.List;
@@ -240,21 +241,42 @@ public class RNZoomUsModule extends ReactContextBaseJavaModule implements ZoomSD
         }
   }
   
+  @ReactMethod
   public void leaveMeeting() {
-    ZoomSDK zoomSDK = ZoomSDK.getInstance();
+    final ZoomSDK zoomSDK = ZoomSDK.getInstance();
 
     if (!zoomSDK.isInitialized()) {
       return;
     }
 
-    final MeetingService meetingService = zoomSDK.getMeetingService();
-
-    meetingService.leaveCurrentMeeting(false);
+    UiThreadUtil.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        zoomSDK.getMeetingService().leaveCurrentMeeting(false);
+      }
+    });
   }
 
   @ReactMethod
   public void connectAudio() {
     connectAudioWithVoIP();
+  }
+
+  @ReactMethod
+  public void isMeetingConnected(final Promise promise) {
+    final ZoomSDK zoomSDK = ZoomSDK.getInstance();
+
+    if (!zoomSDK.isInitialized()) {
+      promise.resolve(false);
+      return;
+    }
+
+    UiThreadUtil.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        promise.resolve(zoomSDK.getInMeetingService().isMeetingConnected());
+      }
+    });
   }
 
   @Override
